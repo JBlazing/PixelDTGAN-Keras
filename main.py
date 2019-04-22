@@ -1,5 +1,4 @@
 import cv2
+import models
 
-img = cv2.imread("../test.jpg")
-
-print(img.shape)
+models.createModels((64,64,2))
