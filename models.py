@@ -102,7 +102,7 @@ def createGen(input_shape , filters):
         if norm:
             l = BatchNormalization()(l)
         return l
-    def createOutGenLayer(inLayer , outputSize , activation='relu' norm=True , kernel_size=(4,4) , strides=(2,2))
+    def createOutGenLayer(inLayer , outputSize , activation='relu' , norm=True , kernel_size=(4,4) , strides=(2,2)):
         l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides)(inLayer)
         if norm:
             l = BatchNormalization()(l)
@@ -148,3 +148,5 @@ def createDisc(input_shape , filters ):
 
     return DiscModel
 
+#    def createAssociated(input_shape , filters):
+        
