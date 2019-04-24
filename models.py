@@ -12,7 +12,6 @@ def createModels(input_shape):
 
     GenModel = Sequential()
 
-
     GenModel.add(Conv2D(96, kernel_size=(4, 4), strides=(2, 2),input_shape=input_shape))
     GenModel.add(LeakyReLU(.2))
     GenModel.add(Conv2D(96 * 2, kernel_size=(4, 4), strides=(2, 2)))
@@ -76,5 +75,19 @@ def createModels(input_shape):
     AModel.add(Conv2D(1 , kernel_size=(4,4)))
     AModel.add(Activation('sigmoid'))
     AModel.add(Dense(1))
+
+    opt = Adam(0.0002,0.5)
+
+    Disc.compile(loss= 'mse' , optimizer = opt , metrics=['accuracy'])
+    
+    imgA = Input(shape=input_shape)
+    imgB = Input(shape=input_shape)
+
+    fakeA = GenModel(imgB)
+
+    DiscModel.trainable = False
+    valid = DiscModel([fakeA , imgB])
+
+    combo = Model(inputs=([imgA , imgB]) , outputs=[valid , fake_A])
 
     return GenModel , DiscModel  , AModel

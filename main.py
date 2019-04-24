@@ -1,12 +1,12 @@
 import cv2
 import models
-
+import fileLoader
 def main():
 
-    GenModel , DiscModel , AModel = models.createModels((64,64,2))
+    #GenModel , DiscModel , AModel = models.createModels((64,64,2))
 
-
-
+    files = fileLoader.getFiles('lookbook/data/')
+    print(files)
 
 
 
