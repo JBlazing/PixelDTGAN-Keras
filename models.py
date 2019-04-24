@@ -97,7 +97,7 @@ def createModels(input_shape):
 def createGen(input_shape , filters):
 
     def createInGenLayer(inLayer , outputSize , norm=True , kernel_size=(4,4) , strides=(2,2)):
-        l = Conv2D(outputSize , kernel_size = kernel_size , strides=strides)
+        l = Conv2D(outputSize , kernel_size = kernel_size , strides=strides)(inLayer)
         l = LeakyReLU(.2)(l)
         if norm:
             l = BatchNormalization()(l)
@@ -123,4 +123,28 @@ def createGen(input_shape , filters):
     GenModel = Model(inputs=[in_layer] , outputs=[G8])
     GenModel.compile()
 
+    return GenModel
+
+def createDisc(input_shape , filters ):
+
+    def createLayers(input , outputSize , leaky=True , batch=True):
+        l = Conv2D(outputSize ,  kernel_size = kernel_size , strides=strides)(inLayer)
+        if Leaky:
+            l = LeakyReLU(.2)(l)
+        if batch:
+            l = BatchNormalization()(l)
+        return l
+
+    in_layer = Input(shape=input_shape , name="Discrm Input")
+    L1 = createLayers(in_layer , filters)
+    L2 = createLayers(L1 , filters * 2)
+    L3 = createLayers(L2 , filters * 4)
+    L4 = createLayers(L3 , filters * 8)
+    L5 = createLayers(L4 , 1 , leaky=False , batch=False)
+    L6 = Activation('sigmoid')(L5)
+
+    DiscModel = Model(inputs=[in_layer] , outputs=[L6])
+    DiscModel.compile()
+
+    return DiscModel
 
