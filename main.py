@@ -1,36 +1,28 @@
 import cv2
-import models
+from models import createGen 
 import fileLoader
 from customLayer import ImageLayer
-from keras.layers import Input
-from keras.models import Sequential, Model
-from keras.callbacks import Callback
-from keras import backend as K
-import numpy as np
+from tensorflow.keras.layers import Input
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.callbacks import Callback
+from tensorflow.keras import backend as K
+from tensorflow.keras.utils import plot_model
+
+
 
 def main():
     '''
     files = fileLoader.getFiles('lookbook/data/')
     GenModel , DiscModel , AModel = models.createModels((64,64,2))
     '''
-    input_shape = (1,4)
+    input_shape = (64,64,3)
 
-    img_1 = Input(shape=input_shape , name = "Img_1")
-    img_2 = Input(shape=input_shape , name = "Img_2")
+    
+    GenLayers = createGen(input_shape , 64)
+    
+    
 
-    test = ImageLayer()([img_1 , img_2])
-
-
-    Mod = Model(inputs=[img_1 , img_2] , outputs=test)
-    Mod.compile(loss='mean_squared_error', optimizer='sgd')
-
-    inpu = [np.indices(input_shape) , np.indices(input_shape)]
-    inpu[0][0][0][1] = 10
-    print(inpu[1][0][0][1])
-
-    out = Mod.predict({"Img_1" : inpu[0] , "Img_2" : inpu[1]})
-
-    print(out)
+    
     
     
 

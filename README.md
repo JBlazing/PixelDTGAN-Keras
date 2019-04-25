@@ -6,7 +6,7 @@ The main objective is to try and segmenet pictures of roads in order to identify
 
 Right Now this is a work in progress. Here is my current TO DO.
 
-* Implement the Selection Layer which chooses a output of the Generative network, the assocciated image, or the non associated image.
-* Link each of the layers Up
-* Properly train each layer.
+* [x] Implement the Selection Layer which chooses a output of the Generative network, the assocciated image, or the non associated image.
+* [x] Switch to use Tensorflow 2.0 Keras interface 
+* [] Figure out optimal way to train the models either 3 seperate models or 1 giant model
 * ...
