@@ -148,5 +148,5 @@ def createDisc(input_shape , filters ):
 
     return DiscModel
 
-#    def createAssociated(input_shape , filters):
+#def createAssociated(inputs , filters):
         

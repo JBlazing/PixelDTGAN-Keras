@@ -5,7 +5,7 @@ from customLayer import ImageLayer
 from keras.layers import Input
 from keras.models import Sequential, Model
 from keras.callbacks import Callback
-
+from keras import backend as K
 import numpy as np
 
 def main():
@@ -18,7 +18,7 @@ def main():
     img_1 = Input(shape=input_shape , name = "Img_1")
     img_2 = Input(shape=input_shape , name = "Img_2")
 
-    test = ImageLayer(input_shape)([img_1 , img_2])
+    test = ImageLayer()([img_1 , img_2])
 
 
     Mod = Model(inputs=[img_1 , img_2] , outputs=test)
@@ -27,14 +27,11 @@ def main():
     inpu = [np.indices(input_shape) , np.indices(input_shape)]
     inpu[0][0][0][1] = 10
     print(inpu[1][0][0][1])
+
+    out = Mod.predict({"Img_1" : inpu[0] , "Img_2" : inpu[1]})
+
+    print(out)
     
-    
-  
-
-    output = Mod.predict({"Img_1" : inpu[0] , "Img_2" : inpu[1]})
-
-
-    print(output)
     
 
 
