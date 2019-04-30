@@ -1,13 +1,16 @@
-
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import *
 from tensorflow.keras.utils import *
 from tensorflow import keras
+from tensorflow.data import Dataset
 import losses
 import numpy as np
-def createLayers(input , outputSize , kernel_size=(4,4), strides=(2,2) ,leaky=True , batch=True):
-    l = Conv2D(outputSize ,  kernel_size = kernel_size , strides=strides)(input)
+
+
+
+def createLayers(input , outputSize , kernel_size=(4,4), strides=2 ,leaky=True , batch=True , padding="same"):
+    l = Conv2D(outputSize ,  kernel_size = kernel_size ,  strides=strides, padding=padding )(input)
     if leaky:
         l = LeakyReLU(.2)(l)
     if batch:
@@ -24,7 +27,7 @@ def labelGen(i):
 
 class PLDTGAN:
 
-    def __init__(self , input_shape , filters=64 ,epochs):
+    def __init__(self , input_shape , filters=64 ,epochs=64):
         self._epochs = epochs
         self._num_filters = filters
         self._input_shape = input_shape
@@ -34,19 +37,19 @@ class PLDTGAN:
         self.Assoc = self.createAssociated(input_shape , filters)
 
 
-    def train(self, x,y):
+    def train(self, X,Y, Targets , T_idxs):
 
         optimizer = keras.optimizers.SGD(learning_rate=1e-3)
         
 
 
-        '''
-            Train All 3 models at once 
-        '''
-
 
         for epoch in range(self.epochs):
             
+            dis = get_disassociated(T_idxs , len(Targets))
+
+            #new_Y = [ (y , Targets[idx] ) for y, idx in zip(Y,Y_idxs):]
+
             for step, x_batch  in enumerate(x):
                 
                 #if the assocated image 
@@ -83,29 +86,23 @@ class PLDTGAN:
 
     def createGAN(self , input_shape , filters):
 
-        def createInGenLayer(inLayer , outputSize , norm=True , kernel_size=(4,4) , strides=(2,2)):
-            l = Conv2D(outputSize , kernel_size = kernel_size , strides=strides)(inLayer)
-            l = LeakyReLU(.2)(l)
-            if norm:
-                l = BatchNormalization()(l)
-            return l
         def createOutGenLayer(inLayer , outputSize , activation='relu' , norm=True , kernel_size=(4,4) , strides=(2,2)):
-            l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides)(inLayer)
+            l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides , padding="same")(inLayer)
             if norm:
                 l = BatchNormalization()(l)
             return l
         
         in_layer = Input(shape=input_shape , name = "Input")
 
-        G1 = createInGenLayer(in_layer , filters)
-        G2 = createInGenLayer(G1 , filters * 2)
-        G3 = createInGenLayer(G2, filters * 4)
-        G4 = createInGenLayer(G3 , filters * 8)
-
-        G5 = createOutGenLayer(G4 , filters * 4)
+        L1 = createLayers(in_layer , filters)
+        L2 = createLayers(L1 , filters * 2)
+        L3 = createLayers(L2 , filters * 4)
+        L4 = createLayers(L3 , filters * 8)
+        L5 = createLayers(L4 , 100 , kernel_size=4 , strides=4)
+        G5 = createOutGenLayer(L5 , filters * 4 , strides=4)
         G6 = createOutGenLayer(G5 , filters * 2)
         G7 = createOutGenLayer(G6 , filters)
-        G8 = createOutGenLayer(G7 , 3 , activation='tanh')
+        G8 = createOutGenLayer(G7 , 3 , strides=2  ,activation='tanh')
 
         GenModel = Model(inputs=[in_layer] , outputs=[G8])
         #GenModel.compile(loss='mean_squared_error', optimizer='sgd')
@@ -139,7 +136,7 @@ class PLDTGAN:
         L3 = createLayers(L2 , filters * 4)
         L4 = createLayers(L3 , filters * 8)
         
-        L5 = createLayers(L4 , 1 ,  kernel_size=2, strides=1 , leaky=False , batch=False)
+        L5 = createLayers(L4 , 1 ,  kernel_size=4, strides=4 , leaky=False , batch=False)
         L6 = Activation('sigmoid')(L5)
         
         AssocModel = Model(inputs=[image1,image2] , outputs=L6 )
