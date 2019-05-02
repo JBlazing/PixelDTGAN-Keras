@@ -9,7 +9,8 @@ Right Now this is a work in progress. Here is my current TO DO.
 * [x] Implement the Selection Layer which chooses a output of the Generative network, the assocciated image, or the non associated image.
 * [x] Switch to use Tensorflow 2.0 Keras interface 
 * [x] Figure out optimal way to train the models either 3 seperate models or 1 giant model (Went with 3 seperate models)
-* [ ] Finish Training Function
+* [x] Finish Training Function
+* [ ] Excedding GPU memory will figure out how to get around this without having to go get new GPU
 * [ ] Test on LookBook dataset
 * [ ] Modify and experiment with the KITTI Dataset 
 * [ ] Write report and then do Dissertation
