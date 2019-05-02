@@ -1,7 +1,7 @@
 # Don't track content of these folders
 lookbook/
 __pycache__
-
+.vscode/
 # Compiled source #
 ###################
 

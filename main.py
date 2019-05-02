@@ -1,24 +1,29 @@
 import cv2
 from models import PLDTGAN
-from tensorflow.keras.utils import plot_model
-from fileLoader import getFiles , parse_Filenames , get_disassociated , loadFiles
-
+from fileLoader import getFiles , parse_Filenames , get_disassociated , loadFiles , processImages
+import numpy as np
 
 def main():
     
-  
     files = getFiles('lookbook/resized/')
     
     X,Targets,Y_idxs = parse_Filenames(files)
 
     X, Targets = loadFiles(X,Targets)
 
-    Y_image = [ Targets[idx] for idx in Y_idxs ]
+    X , Targets = processImages(X , Targets)
+    
+
+
+    dis = get_disassociated(Y_idxs , len(Targets))
+    
+    Y_D_Images = [ (Targets[idx], Targets[d]) for idx , d in zip(Y_idxs , dis) ]
+    
+    Mod = PLDTGAN(X[0].shape , 64 , 64)
+
+    Mod.train(X , Y_D_Images)
     
     
-    print(len(Y_idxs))
-            
-    input('a')
 
     '''
     dis = get_disassociated(Y , Y_idxs)
@@ -35,7 +40,7 @@ def main():
     input_shape = (64,64,3)
 
     
-    Mod = PLDTGAN(input_shape , 64 , 64)
+    
     
     plot_model(Mod.GAN , show_shapes=True , to_file="model.png" )
     

@@ -2,6 +2,7 @@ import cv2
 import os
 import re
 import numpy as np
+import sklearn as sk
 def getFiles(path):
     
     files = os.fsencode(path)
@@ -36,6 +37,11 @@ def resizeImages(path , save_path , new_size):
         image = cv2.resize(image , new_size)
         cv2.imwrite(save_path + os.fsdecode(file) , image)
 
+def processImages(X,Y):
+
+    
+    return  (   [ cv2.normalize(x , None ,-1 , 1 , norm_type=cv2.NORM_MINMAX , dtype=cv2.CV_32F) for x in X] , \
+                [ cv2.normalize(x , None ,-1 , 1 , norm_type=cv2.NORM_MINMAX , dtype=cv2.CV_32F) for x in Y] )
 
 def parse_Filenames(filesList):
 

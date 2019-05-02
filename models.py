@@ -8,7 +8,6 @@ import losses
 import numpy as np
 
 
-
 def createLayers(input , outputSize , kernel_size=(4,4), strides=2 ,leaky=True , batch=True , padding="same"):
     l = Conv2D(outputSize ,  kernel_size = kernel_size ,  strides=strides, padding=padding )(input)
     if leaky:
@@ -37,45 +36,60 @@ class PLDTGAN:
         self.Assoc = self.createAssociated(input_shape , filters)
 
 
-    def train(self, X,Y, Targets , T_idxs):
+    def train(self, X, Y):
 
-        optimizer = keras.optimizers.SGD(learning_rate=1e-3)
+        opt = keras.optimizers.SGD(learning_rate=1e-3)
         
 
+        dataset = Dataset.from_tensor_slices((X,Y))
+        dataset = dataset.batch(self.batch_size)
 
-
+        print("Starting The Training")
         for epoch in range(self.epochs):
             
-            dis = get_disassociated(T_idxs , len(Targets))
+            for step, (x_batch, y_batch)  in enumerate(dataset):
+                 
+                t = [] #np.array([ labelGen(np.random.randint(3)) for i in range(self.batch_size)])
 
-            #new_Y = [ (y , Targets[idx] ) for y, idx in zip(Y,Y_idxs):]
-
-            for step, x_batch  in enumerate(x):
-                
-                #if the assocated image 
-                t = np.array([ labelGen(np.random.randint(3)) for i in range(self.batch_size)])
-
-
+                y = []
                 with tf.GradientTape() as GTape:
+                    '''
                     logits = self.GAN(x_batch)
                     
+
+                    #split out the target and disasociated images
+                    # and push either the apporiate image
+                    for i, (a , d) in enumerate(y_batch):
+                        dec = np.random.randint(3)
+                        if dec == 0:
+                            y.append(logits[i])
+                        elif dec == 1:
+                            y.append(a)
+                        else:
+                            y.append(d)
+                        t.append(labelGen(dec))
+                    
+                    t = np.array(t)
+                    '''
                     with tf.GradientTape() as DTape: 
                         DY = self.Discrm(x_batch)
                         loss_value = Assoc_Discrm_Loss(DY , t )
                     grads = DTape.gradient(loss_value , self.Discrm.trainable_variables)
-                    self.opt.apply_gradients(zip(grads,self.Discrm.trainable_variables))
+                    opt.apply_gradients(zip(grads,self.Discrm.trainable_variables))
 
                     with tf.GradientTape() as ATape:
                         #need to cat the images
                         
-                        AY = self.Assoc(x_batch)
+                        AY = self.Assoc([x_batch, y])
                         loss_value = Assoc_Discrm_Loss(DY , t)
                     grads = ATape.gradient(loss_value , self.Assoc.trainable_variables )
-                    self.opt.apply_gradients(zip(grads,self.Assoc.trainable_variables)) 
+                    opt.apply_gradients(zip(grads,self.Assoc.trainable_variables)) 
 
                     loss_value = GANLoss(DY, AY)
                     grads = GTape.gradient(loss_value , self.GAN.trainable_variables)
-                    self.opt.apply_gradients(zip(grads,self.GAN.trainable_variables))
+                    opt.apply_gradients(zip(grads,self.GAN.trainable_variables))
+
+                
 
     def test(self, x,y):
         pass
