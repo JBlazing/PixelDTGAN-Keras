@@ -4,7 +4,8 @@ from tensorflow.keras.layers import *
 from tensorflow.keras.utils import *
 from tensorflow import keras
 from tensorflow.data import Dataset
-import losses
+from tensorflow import GradientTape
+from losses import Assoc_Discrm_Loss , GANLoss
 import numpy as np
 
 
@@ -36,47 +37,48 @@ class PLDTGAN:
         self.Assoc = self.createAssociated(input_shape , filters)
 
 
-    def train(self, X, Y):
+    def train(self, X, Y , D):
 
         opt = keras.optimizers.SGD(learning_rate=1e-3)
-        
-
-        
-
+    
         print("Starting The Training", flush=True)
         for epoch in range(self._epochs):
             
-            for step, (x_batch, y_batch)  in enumerate(dataset):
+            for step, (x_batch, y_batch , d)  in enumerate(zip(X,Y,D)):
                  
-                t = [] #np.array([ labelGen(np.random.randint(3)) for i in range(self.batch_size)])
+                t = [] 
 
                 y = []
-                with tf.GradientTape() as GTape:
+                with GradientTape() as GTape:
                     
                     logits = self.GAN(x_batch)
                     
 
                     #split out the target and disasociated images
                     # and push either the apporiate image
-                    for i, (a , d) in enumerate(y_batch):
+                    for i, (a , dis) in enumerate(zip(y_batch,d)):
                         dec = np.random.randint(3)
                         if dec == 0:
                             y.append(logits[i])
                         elif dec == 1:
                             y.append(a)
                         else:
-                            y.append(d)
+                            y.append(dis)
                         t.append(labelGen(dec))
                     
+                    print(len(dis))
+                    input("a")
                     t = np.array(t)
                     
-                    with tf.GradientTape() as DTape: 
-                        DY = self.Discrm(x_batch)
+                    y = np.stack(y)
+
+                    with GradientTape() as DTape: 
+                        DY = self.Discrm(y)
                         loss_value = Assoc_Discrm_Loss(DY , t )
                     grads = DTape.gradient(loss_value , self.Discrm.trainable_variables)
                     opt.apply_gradients(zip(grads,self.Discrm.trainable_variables))
 
-                    with tf.GradientTape() as ATape:
+                    with GradientTape() as ATape:
                         #need to cat the images
                         
                         AY = self.Assoc([x_batch, y])

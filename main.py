@@ -26,8 +26,13 @@ def main():
 
     y_train =  np.stack([y[0] for y in y_train])
     D_images = np.stack([y[1] for y in y_train])
+    print(D_images.shape)
+    X_train = np.array_split(X_train, 128)
+    y_train = np.array_split(y_train , 128)
+    D_images = np.array_split(D_images , 128)
     
-    #Mod.train(X_train , y_train)
+    Mod.train(X_train , y_train , D_images)
+    
     input("a")
     #Mod.train(X , Y_D_Images)
     
