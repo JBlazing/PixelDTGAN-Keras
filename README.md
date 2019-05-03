@@ -11,7 +11,7 @@ Right Now this is a work in progress. Here is my current TO DO.
 * [x] Figure out optimal way to train the models either 3 seperate models or 1 giant model (Went with 3 seperate models)
 * [x] Finish Training Function
 * [x] Excedding GPU memory will figure out how to get around this without having to go get new GPU (This was a issue with GAN output layer sizing)
-* [ ] Optimize for ram memory usage
+* [ ] Optimize for ram memory usage (Try and load data when needed)
 * [ ] Test on LookBook dataset
 * [ ] Modify and experiment with the KITTI Dataset 
 * [ ] Write report and then do Dissertation
