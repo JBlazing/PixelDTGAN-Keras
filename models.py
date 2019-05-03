@@ -26,11 +26,11 @@ def labelGen(i):
 
 class PLDTGAN:
 
-    def __init__(self , input_shape , filters=64 ,epochs=64):
+    def __init__(self , input_shape , filters=64 ,epochs=64 , batch_size=128):
         self._epochs = epochs
         self._num_filters = filters
         self._input_shape = input_shape
-        self.batch_size = 64
+        self.batch_size = batch_size
         self.GAN = self.createGAN(input_shape , self._num_filters)
         self.Discrm = self.createDisc(input_shape , self._num_filters)
         self.Assoc = self.createAssociated(input_shape , filters)
@@ -41,11 +41,10 @@ class PLDTGAN:
         opt = keras.optimizers.SGD(learning_rate=1e-3)
         
 
-        dataset = Dataset.from_tensor_slices((X,Y))
-        dataset = dataset.batch(self.batch_size)
+        
 
-        print("Starting The Training")
-        for epoch in range(self.epochs):
+        print("Starting The Training", flush=True)
+        for epoch in range(self._epochs):
             
             for step, (x_batch, y_batch)  in enumerate(dataset):
                  
@@ -53,7 +52,7 @@ class PLDTGAN:
 
                 y = []
                 with tf.GradientTape() as GTape:
-                    '''
+                    
                     logits = self.GAN(x_batch)
                     
 
@@ -70,7 +69,7 @@ class PLDTGAN:
                         t.append(labelGen(dec))
                     
                     t = np.array(t)
-                    '''
+                    
                     with tf.GradientTape() as DTape: 
                         DY = self.Discrm(x_batch)
                         loss_value = Assoc_Discrm_Loss(DY , t )
@@ -116,7 +115,9 @@ class PLDTGAN:
         G5 = createOutGenLayer(L5 , filters * 4 , strides=4)
         G6 = createOutGenLayer(G5 , filters * 2)
         G7 = createOutGenLayer(G6 , filters)
-        G8 = createOutGenLayer(G7 , 3 , strides=2  ,activation='tanh')
+        G8 = createOutGenLayer(G7 , filters)
+        
+        G8 = createOutGenLayer(G8 , 3 , strides=2  ,activation='tanh')
 
         GenModel = Model(inputs=[in_layer] , outputs=[G8])
         #GenModel.compile(loss='mean_squared_error', optimizer='sgd')
