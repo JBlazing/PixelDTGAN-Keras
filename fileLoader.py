@@ -37,12 +37,14 @@ def resizeImages(path , save_path , new_size):
         image = cv2.resize(image , new_size)
         cv2.imwrite(save_path + os.fsdecode(file) , image)
 
-def processImages(X,Y):
+def processImages(X):
 
-    
-    return  (   [ cv2.normalize(x , None ,-1 , 1 , norm_type=cv2.NORM_MINMAX , dtype=cv2.CV_32F) for x in X] , \
-                [ cv2.normalize(x , None ,-1 , 1 , norm_type=cv2.NORM_MINMAX , dtype=cv2.CV_32F) for x in Y] )
-
+    for i , x in enumerate(X):
+        X[i] = cv2.normalize(x,X[i], -1,  1 , cv2.NORM_MINMAX , cv2.CV_32FC3)
+    '''
+    return  (   np.stack([ cv2.normalize(x , x ,-1 , 1 , norm_type=cv2.NORM_MINMAX , dtype=cv2.CV_32F) for x in X]) , \
+                np.stack([ cv2.normalize(x , x ,-1 , 1 , norm_type=cv2.NORM_MINMAX , dtype=cv2.CV_32F) for x in Y]) )
+    '''
 def parse_Filenames(filesList):
 
     X = []
@@ -74,6 +76,6 @@ def get_disassociated(Y_Idxs , N):
     return dis
 
 
-def loadFiles(X , Y):
+def loadFiles(X):
 
-    return [ cv2.imread(x) for x in X ] , [ cv2.imread(y) for y in Y ]
+    return np.stack([ cv2.imread(x).astype(np.float32) for x in X ])

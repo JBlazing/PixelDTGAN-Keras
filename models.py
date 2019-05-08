@@ -2,11 +2,13 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import *
 from tensorflow.keras.utils import *
-from tensorflow import keras
+from tensorflow import keras , convert_to_tensor , reshape
 from tensorflow.data import Dataset
-from tensorflow import GradientTape
+from tensorflow import GradientTape , reduce_mean
 from losses import Assoc_Discrm_Loss , GANLoss
 import numpy as np
+from fileLoader import loadFiles , processImages
+from tensorflow.math import log
 
 
 def createLayers(input , outputSize , kernel_size=(4,4), strides=2 ,leaky=True , batch=True , padding="same"):
@@ -37,58 +39,79 @@ class PLDTGAN:
         self.Assoc = self.createAssociated(input_shape , filters)
 
 
-    def train(self, X, Y , D):
+    def train(self, X, Y , Targets):
 
         opt = keras.optimizers.SGD(learning_rate=1e-3)
     
         print("Starting The Training", flush=True)
         for epoch in range(self._epochs):
             
-            for step, (x_batch, y_batch , d)  in enumerate(zip(X,Y,D)):
-                 
-                t = [] 
+            for step, (x_batch, y_batch)  in enumerate(zip(X,Y)):
+                
+                x_batch = loadFiles(x_batch)
+                processImages(x_batch)
+                tFiles = Targets[y_batch[: , 0]]
+                dFiles = Targets[y_batch[: , 1]]
+                
+                y = loadFiles(tFiles)
+                d = loadFiles(dFiles) 
+                processImages(y)
+                processImages(d)
 
-                y = []
+                tt = [] 
+                yy = []
                 with GradientTape() as GTape:
+                    
                     
                     logits = self.GAN(x_batch)
                     
 
                     #split out the target and disasociated images
                     # and push either the apporiate image
-                    for i, (a , dis) in enumerate(zip(y_batch,d)):
+                    for i, (a , dis) in enumerate(zip(y,d)):
                         dec = np.random.randint(3)
                         if dec == 0:
-                            y.append(logits[i])
+                            yy.append(logits[i])
                         elif dec == 1:
-                            y.append(a)
+                            yy.append(a)
                         else:
-                            y.append(dis)
-                        t.append(labelGen(dec))
+                            yy.append(dis)
+                        tt.append(labelGen(dec))
                     
-                    print(len(dis))
-                    input("a")
-                    t = np.array(t)
-                    
-                    y = np.stack(y)
+
+                    tt = convert_to_tensor(tt)
+                
+                    yy = np.stack(yy)
 
                     with GradientTape() as DTape: 
-                        DY = self.Discrm(y)
-                        loss_value = Assoc_Discrm_Loss(DY , t )
-                    grads = DTape.gradient(loss_value , self.Discrm.trainable_variables)
+                        DY = self.Discrm(yy)
+                        #reshape(DY , [-1])
+                        
+                        #loss_value = Assoc_Discrm_Loss(DY , tt )
+                        Dloss_value = keras.losses.binary_crossentropy(DY , tt )
+                        #print(Dloss_value)
+                        Dloss_value =  reduce_mean(Dloss_value)
+                    grads = DTape.gradient(Dloss_value , self.Discrm.trainable_variables)
+                    
                     opt.apply_gradients(zip(grads,self.Discrm.trainable_variables))
 
                     with GradientTape() as ATape:
                         #need to cat the images
                         
-                        AY = self.Assoc([x_batch, y])
-                        loss_value = Assoc_Discrm_Loss(DY , t)
-                    grads = ATape.gradient(loss_value , self.Assoc.trainable_variables )
-                    opt.apply_gradients(zip(grads,self.Assoc.trainable_variables)) 
+                        AY = self.Assoc([x_batch, yy])
+                        #reshape(AY , [-1])
+                        #loss_value = Assoc_Discrm_Loss(AY , tt)
+                        Aloss_value = keras.losses.binary_crossentropy(AY , tt)
+                        Aloss_value = reduce_mean(Aloss_value)
+                    Agrads = ATape.gradient(Aloss_value , self.Assoc.trainable_variables )
+                    opt.apply_gradients(zip(Agrads,self.Assoc.trainable_variables)) 
 
-                    loss_value = GANLoss(DY, AY)
-                    grads = GTape.gradient(loss_value , self.GAN.trainable_variables)
-                    opt.apply_gradients(zip(grads,self.GAN.trainable_variables))
+                    loss_value = GANLoss(Dloss_value, Aloss_value)
+                    print(loss_value)
+                    
+                Ggrads = GTape.gradient(loss_value , self.GAN.trainable_variables)
+                print(self.GAN.trainable_variables , flush=True)
+                opt.apply_gradients(zip(Ggrads,self.GAN.trainable_variables))
 
                 
 
@@ -119,9 +142,9 @@ class PLDTGAN:
         G7 = createOutGenLayer(G6 , filters)
         G8 = createOutGenLayer(G7 , filters)
         
-        G8 = createOutGenLayer(G8 , 3 , strides=2  ,activation='tanh')
+        G9 = createOutGenLayer(G8 , 3 , strides=2  ,activation='tanh')
 
-        GenModel = Model(inputs=[in_layer] , outputs=[G8])
+        GenModel = Model(inputs=[in_layer] , outputs=[G9])
         #GenModel.compile(loss='mean_squared_error', optimizer='sgd')
 
         return GenModel
@@ -133,7 +156,7 @@ class PLDTGAN:
         L2 = createLayers(L1 , filters * 2)
         L3 = createLayers(L2 , filters * 4)
         L4 = createLayers(L3 , filters * 8)
-        L5 = createLayers(L4 , 1 , kernel_size=2, strides=1 ,leaky=False , batch=False)
+        L5 = createLayers(L4 , 1 , kernel_size=4, strides=4 ,leaky=False , batch=False)
         L6 = Activation('sigmoid')(L5)
         
         DiscModel = Model(inputs=[in_layer] , outputs=[L6])
