@@ -110,8 +110,8 @@ class PLDTGAN:
                     print(loss_value)
                     
                 Ggrads = GTape.gradient(loss_value , self.GAN.trainable_variables)
-                print(self.GAN.trainable_variables , flush=True)
-                opt.apply_gradients(zip(Ggrads,self.GAN.trainable_variables))
+                #print(self.GAN.trainable_variables , flush=True)
+            opt.apply_gradients(zip(Ggrads,self.GAN.trainable_variables))
 
                 
 
