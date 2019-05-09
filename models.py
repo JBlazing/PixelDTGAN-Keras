@@ -41,13 +41,18 @@ class PLDTGAN:
 
     def train(self, X, Y , Targets):
 
+        flag = True
         opt = keras.optimizers.SGD(learning_rate=1e-3)
     
         print("Starting The Training", flush=True)
         for epoch in range(self._epochs):
             
+            print("Step %i of %i" % (epoch , self._epochs))
             for step, (x_batch, y_batch)  in enumerate(zip(X,Y)):
                 
+                if step == len(X)-1:
+                    continue
+
                 x_batch = loadFiles(x_batch)
                 processImages(x_batch)
                 tFiles = Targets[y_batch[: , 0]]
@@ -107,14 +112,22 @@ class PLDTGAN:
                     opt.apply_gradients(zip(Agrads,self.Assoc.trainable_variables)) 
 
                     loss_value = GANLoss(Dloss_value, Aloss_value)
-                    print(loss_value)
+                    #print(loss_value)
                     
                 Ggrads = GTape.gradient(loss_value , self.GAN.trainable_variables)
                 #print(self.GAN.trainable_variables , flush=True)
-            opt.apply_gradients(zip(Ggrads,self.GAN.trainable_variables))
-
-                
-
+            try:
+                opt.apply_gradients(zip(Ggrads,self.GAN.trainable_variables))
+            except:
+                if flag:
+                    print(step)
+                    print(len(X))
+                    flag = False
+                    continue
+                print("it broke")
+                return
+        print("Done")
+        return
     def test(self, x,y):
         pass
 
