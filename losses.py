@@ -9,5 +9,5 @@ def Assoc_Discrm_Loss(pred , t):
 
 def GANLoss(D , A):
 
-    return (-0.5 * D) - (0.5*A)
+    return -0.5 * (D + A) 
 
