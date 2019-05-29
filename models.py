@@ -2,15 +2,15 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import *
 from tensorflow.keras.utils import *
-from tensorflow import keras , convert_to_tensor , reshape, fill
+from tensorflow import keras , convert_to_tensor , reshape, fill , shape
 from tensorflow.data import Dataset
 from tensorflow import GradientTape , reduce_mean
 from losses import Assoc_Discrm_Loss , GANLoss
 import numpy as np
 from fileLoader import loadFiles , processImages
 from tensorflow.math import log
-
-
+from tensorflow.train import GradientDescentOptimizer
+ 
 def createLayers(input , outputSize , kernel_size=(4,4), strides=2 ,leaky=True , batch=True , padding="same"):
     l = Conv2D(outputSize ,  kernel_size = kernel_size ,  strides=strides, padding=padding )(input)
     if leaky:
@@ -29,8 +29,9 @@ def labelGen(i):
 
 class PLDTGAN:
 
-    def __init__(self , input_shape , filters=64 ,epochs=64 , batch_size=128):
-        self._epochs = epochs
+    def __init__(self , input_shape , filters=64 , Depochs=10 , Gepochs=64 , batch_size=128):
+        self._Depochs = Depochs
+        self._Gepochs = Gepochs
         self._num_filters = filters
         self._input_shape = input_shape
         self._cutOff = 10
@@ -38,17 +39,21 @@ class PLDTGAN:
         self.GAN = self.createGAN(input_shape , self._num_filters)
         self.Discrm = self.createDisc(input_shape , self._num_filters)
         self.Assoc = self.createAssociated(input_shape , filters)
-
+    
 
     def train(self, X, Y , Targets):
 
         flag = True
-        opt = keras.optimizers.SGD(learning_rate=1e-3)
-    
-       # self.TrainDis_Ass(X,Y , Targets , opt)
-        print("Training GAN now")
-        self.TrainGAN(X,Y,Targets , opt)
+        opt = GradientDescentOptimizer(learning_rate=1e-3)
+        
+        self.TrainDis_Ass(X,Y , Targets , opt)
+       
+        
+        
+     
+        #self.TrainGAN(X,Y,Targets , opt)
 
+        
         
         print("Done")
         return
@@ -56,8 +61,8 @@ class PLDTGAN:
 
     def TrainGAN(self, X,Y,Targets , opt):
         
-        for epoch in range(1):
-            print("Step %i of %i" % (epoch , self._epochs))
+        for epoch in range(self._Gepochs):
+            print("Step %i of %i" % (epoch , self._Gepochs))
             for step , (x_batch , y_batch) in enumerate(zip(X,Y)):
 
                 x_batch = loadFiles(x_batch)
@@ -75,54 +80,44 @@ class PLDTGAN:
 
                 with GradientTape() as tape:
                     logits = self.GAN(x_batch)
+                  
+                  
+                    tt = [ 0.0 for x in logits]
+                    DY = self.Discrm(logits)
+                
+                    AY = self.Assoc([x_batch, logits])
                     
-
-                    with tape.stop_recording():
-
-                        for i, (a , dis) in enumerate(zip(y,d)):
-                            dec = np.random.randint(3)
-                            if dec == 0:
-                                yy.append(logits[i])
-                            elif dec == 1:
-                                yy.append(a)
-                            else:
-                                yy.append(dis)
-                            tt.append(labelGen(dec))
                     
-
-                        tt = convert_to_tensor(tt)
+                    #tt = reshape(DY , shape(DY))
+                    DY  = reshape(DY , [-1])
+                    AY = reshape(DY , [-1])
                     
-                        logits = convert_to_tensor(np.stack(yy))
-                    
-                        DY = self.Discrm(logits)
-                    
-                        AY = self.Assoc([x_batch, logits])
-
                     Dloss_value = keras.losses.binary_crossentropy(tt , DY )
                     Aloss_value = keras.losses.binary_crossentropy(tt , AY )
 
-                    Dloss_value = reduce_mean(Dloss_value)
-                    Aloss_value = reduce_mean(Aloss_value)
-            
+
+                    
                     loss = GANLoss(Aloss_value , Dloss_value)
-                    #loss = reduce_mean(loss)
+                    loss = reduce_mean(loss)
                     
                 
                         
                     
                     #loss = fill(log.shape , loss)
-                o = tape.watched_variables()
                 
-                grads = tape.gradient( loss , self.GAN.trainable_variables)   
-
-                opt.apply_gradients(zip(grads , self.GAN.trainable_variables))
+                
+                grads = tape.gradient( loss, self.GAN.trainable_variables)   
+                
+                
+                print(grads , flush=True)
+                #opt.apply_gradients(zip(grads , self.GAN.trainable_variables))
 
 
     def TrainDis_Ass(self , X , Y , Targets , opt):
         print("Starting The Associated/Discrm Training", flush=True)
-        for epoch in range(self._epochs):
+        for epoch in range(self._Depochs):
             
-            print("Step %i of %i" % (epoch , self._epochs))
+            print("Step %i of %i" % (epoch , self._Depochs))
             for step, (x_batch, y_batch)  in enumerate(zip(X,Y)):
                 
 
@@ -161,11 +156,11 @@ class PLDTGAN:
                 with GradientTape() as DTape: 
                     DY = self.Discrm(yy)
                     #reshape(DY , [-1])
-                    
+                    tt = reshape(tt , shape(DY))
                     #loss_value = Assoc_Discrm_Loss(DY , tt )
                     Dloss_value = keras.losses.binary_crossentropy(DY , tt )
                     #print(Dloss_value)
-                    Dloss_value =  reduce_mean(Dloss_value)
+                    #Dloss_value =  reduce_mean(Dloss_value)
                 grads = DTape.gradient(Dloss_value , self.Discrm.trainable_variables)
                 
                 opt.apply_gradients(zip(grads,self.Discrm.trainable_variables))
@@ -177,7 +172,7 @@ class PLDTGAN:
                     #reshape(AY , [-1])
                     #loss_value = Assoc_Discrm_Loss(AY , tt)
                     Aloss_value = keras.losses.binary_crossentropy(AY , tt)
-                    Aloss_value = reduce_mean(Aloss_value)
+                   # Aloss_value = reduce_mean(Aloss_value)
                 Agrads = ATape.gradient(Aloss_value , self.Assoc.trainable_variables )
                 opt.apply_gradients(zip(Agrads,self.Assoc.trainable_variables)) 
         
@@ -277,8 +272,22 @@ class PLDTGAN:
                         continue
         print("Done")
         return
-
-
+    
+    
+    def newGAN(self , input_shape , filters):
+        
+        def createOutGenLayer(inLayer , outputSize , activation='relu' , norm=False , kernel_size=(4,4) , strides=(2,2)):
+            l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides , padding="same")(inLayer)
+            if norm:
+                l = BatchNormalization()(l)
+            return l
+        
+        in_layer = Input(shape=input_shape , name = "Input")
+        L1 = createLayers(in_layer , 3)
+        #out = createOutGenLayer(L1 , 3)
+        
+        mod = Model(in_layer , L1)
+        return mod
     
     def createGAN(self , input_shape , filters):
 
