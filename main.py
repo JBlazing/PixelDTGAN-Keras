@@ -33,7 +33,7 @@ def main():
 
     tf.enable_eager_execution()
     
-    Mod = PLDTGAN((64,64,3) , 64 , 25)
+    Mod = PLDTGAN((64,64,3) , 64 , 10 , 90)
     #plot_model(Mod.GAN , show_shapes=True , to_file = 'model.png')
 
 

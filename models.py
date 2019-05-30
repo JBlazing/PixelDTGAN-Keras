@@ -48,10 +48,7 @@ class PLDTGAN:
         
         self.TrainDis_Ass(X,Y , Targets , opt)
        
-        
-        
-     
-        #self.TrainGAN(X,Y,Targets , opt)
+        self.TrainGAN(X,Y,Targets , opt)
 
         
         
@@ -107,15 +104,17 @@ class PLDTGAN:
                 
                 
                 grads = tape.gradient( loss, self.GAN.trainable_variables)   
+                opt.apply_gradients(zip(grads , self.GAN.trainable_variables))
                 
-                
-                print(grads , flush=True)
-                #opt.apply_gradients(zip(grads , self.GAN.trainable_variables))
+                if step % 25 == 0:
+                    
+                    print("GAN Loss:\t{}".format(loss.numpy())
 
 
     def TrainDis_Ass(self , X , Y , Targets , opt):
         print("Starting The Associated/Discrm Training", flush=True)
         for epoch in range(self._Depochs):
+            
             
             print("Step %i of %i" % (epoch , self._Depochs))
             for step, (x_batch, y_batch)  in enumerate(zip(X,Y)):
@@ -175,7 +174,11 @@ class PLDTGAN:
                    # Aloss_value = reduce_mean(Aloss_value)
                 Agrads = ATape.gradient(Aloss_value , self.Assoc.trainable_variables )
                 opt.apply_gradients(zip(Agrads,self.Assoc.trainable_variables)) 
-        
+                 
+                if step % 25 == 0:
+                    Aloss = reduce_mean(Aloss_value)
+                    Dloss = reduce_mean(Dloss_value)
+                    print("Assoc Loss:\t{}\nDiscrm Value:\t{}".format(Aloss.numpy(), Dloss.numpy()))
 
 
     def test(self, x,y):
