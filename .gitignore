@@ -2,6 +2,7 @@
 lookbook/
 __pycache__
 .vscode/
+outputs/
 # Compiled source #
 ###################
 

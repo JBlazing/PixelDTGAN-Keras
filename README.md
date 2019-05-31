@@ -12,7 +12,7 @@ Right Now this is a work in progress. Here is my current TO DO.
 * [x] Finish Training Function
 * [x] Excedding GPU memory will figure out how to get around this without having to go get new GPU (This was a issue with GAN output layer sizing)
 * [x] Optimize for ram memory usage (Try and load data when needed)
-* [ ] Try and figure out why the last batch won't compute gradients
+* [x] Try and figure out why the last batch won't compute gradients (Can't modify the output from the GAN to do a uniform  sampling from either fake , associated or disassociated)
 * [ ] Test on LookBook dataset
 * [ ] Modify and experiment with the KITTI Dataset 
 * [ ] Write report and then do Dissertation

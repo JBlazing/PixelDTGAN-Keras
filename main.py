@@ -27,18 +27,24 @@ def main():
     
     X_train = np.array_split(X_train , splits)
     y_train = np.array_split(y_train, splits)
-
     
+    splits = int(X_test.shape[0] / 128)
+    
+    X_test = np.array_split(X_test , splits)
+    y_test = np.array_split(y_test , splits)
     
 
-    tf.enable_eager_execution()
+   
     
-    Mod = PLDTGAN((64,64,3) , 64 , 10 , 90)
-    #plot_model(Mod.GAN , show_shapes=True , to_file = 'model.png')
-
-
+    Mod = PLDTGAN((64,64,3) , 128 , 10 , 30)
+    
     Mod.train(X_train , y_train , Targets)
     
+    
+    
+    
+    
+    Mod.test(X_test , y_test , Targets)
 
 
 

@@ -45,6 +45,12 @@ def processImages(X):
     return  (   np.stack([ cv2.normalize(x , x ,-1 , 1 , norm_type=cv2.NORM_MINMAX , dtype=cv2.CV_32F) for x in X]) , \
                 np.stack([ cv2.normalize(x , x ,-1 , 1 , norm_type=cv2.NORM_MINMAX , dtype=cv2.CV_32F) for x in Y]) )
     '''
+    
+def deNormalize(X):
+    for i , x in enumerate(X):
+        X[i] = cv2.normalize(x , X[i] , 0 , 255 , cv2.NORM_MINMAX , cv2.CV_32FC3)
+        
+
 def parse_Filenames(filesList):
 
     X = []

@@ -7,12 +7,12 @@ from tensorflow.data import Dataset
 from tensorflow import GradientTape , reduce_mean
 from losses import Assoc_Discrm_Loss , GANLoss
 import numpy as np
-from fileLoader import loadFiles , processImages
+from fileLoader import loadFiles , processImages , deNormalize
 from tensorflow.math import log
-from tensorflow.train import GradientDescentOptimizer
- 
+
+import cv2
 def createLayers(input , outputSize , kernel_size=(4,4), strides=2 ,leaky=True , batch=True , padding="same"):
-    l = Conv2D(outputSize ,  kernel_size = kernel_size ,  strides=strides, padding=padding )(input)
+    l = Conv2D(outputSize ,  kernel_size = kernel_size ,  strides=strides, padding=padding , kernel_initializer=keras.initializers.RandomNormal(stddev=0.02) )(input)
     if leaky:
         l = LeakyReLU(.2)(l)
     if batch:
@@ -22,11 +22,15 @@ def createLayers(input , outputSize , kernel_size=(4,4), strides=2 ,leaky=True ,
 #Generate label for target Y for the loss functions
 #If 1 is generated then the target image was associated image was choosen
 
-def labelGen(i):
+def AssoclabelGen(i):
     if i == 1:
         return 1.0
     return 0.0
-
+def DiscrmLabelGen(i):
+    if i == 1 or i==2:
+        return 1.0
+    return 0.0
+    
 class PLDTGAN:
 
     def __init__(self , input_shape , filters=64 , Depochs=10 , Gepochs=64 , batch_size=128):
@@ -44,15 +48,14 @@ class PLDTGAN:
     def train(self, X, Y , Targets):
 
         flag = True
-        opt = GradientDescentOptimizer(learning_rate=1e-3)
-        
+        opt = keras.optimizers.SGD(learning_rate=.0002 , momentum=.5)
+        print("Starting The Associated/Discrm Training", flush=True)
+
         self.TrainDis_Ass(X,Y , Targets , opt)
        
         self.TrainGAN(X,Y,Targets , opt)
 
-        
-        
-        print("Done")
+       
         return
    
 
@@ -71,48 +74,34 @@ class PLDTGAN:
                 d = loadFiles(dFiles) 
                 processImages(y)
                 processImages(d)
-
-                tt = [] 
+                tt = [ 0.0 for x in x_batch ]
                 yy = []
 
                 with GradientTape() as tape:
                     logits = self.GAN(x_batch)
-                  
-                  
-                    tt = [ 0.0 for x in logits]
+                    
                     DY = self.Discrm(logits)
                 
                     AY = self.Assoc([x_batch, logits])
-                    
-                    
-                    #tt = reshape(DY , shape(DY))
+
                     DY  = reshape(DY , [-1])
                     AY = reshape(DY , [-1])
                     
                     Dloss_value = keras.losses.binary_crossentropy(tt , DY )
                     Aloss_value = keras.losses.binary_crossentropy(tt , AY )
 
-
-                    
                     loss = GANLoss(Aloss_value , Dloss_value)
-                    loss = reduce_mean(loss)
                     
-                
-                        
-                    
-                    #loss = fill(log.shape , loss)
-                
-                
+
                 grads = tape.gradient( loss, self.GAN.trainable_variables)   
                 opt.apply_gradients(zip(grads , self.GAN.trainable_variables))
                 
                 if step % 25 == 0:
                     
-                    print("GAN Loss:\t{}".format(loss.numpy())
+                    print("GAN Loss:\t{}".format(loss.numpy()))
 
 
     def TrainDis_Ass(self , X , Y , Targets , opt):
-        print("Starting The Associated/Discrm Training", flush=True)
         for epoch in range(self._Depochs):
             
             
@@ -132,7 +121,7 @@ class PLDTGAN:
 
                 tt = [] 
                 yy = []
-
+                DT = []
                 logits = self.GAN(x_batch)
                 
                 #split out the target and disasociated images
@@ -145,21 +134,21 @@ class PLDTGAN:
                         yy.append(a)
                     else:
                         yy.append(dis)
-                    tt.append(labelGen(dec))
-                
+                    tt.append(AssoclabelGen(dec))
+                    DT.append(DiscrmLabelGen(dec))
 
                 tt = convert_to_tensor(tt)
-            
+                DT = convert_to_tensor(DT)
                 yy = np.stack(yy)
-
+                
+                
                 with GradientTape() as DTape: 
                     DY = self.Discrm(yy)
-                    #reshape(DY , [-1])
-                    tt = reshape(tt , shape(DY))
-                    #loss_value = Assoc_Discrm_Loss(DY , tt )
-                    Dloss_value = keras.losses.binary_crossentropy(DY , tt )
-                    #print(Dloss_value)
-                    #Dloss_value =  reduce_mean(Dloss_value)
+                    
+                    DT = reshape(DT , shape(DY))
+                    
+                    Dloss_value = keras.losses.binary_crossentropy(DY , DT )
+                 
                 grads = DTape.gradient(Dloss_value , self.Discrm.trainable_variables)
                 
                 opt.apply_gradients(zip(grads,self.Discrm.trainable_variables))
@@ -168,10 +157,10 @@ class PLDTGAN:
                     #need to cat the images
                     
                     AY = self.Assoc([x_batch, yy])
-                    #reshape(AY , [-1])
-                    #loss_value = Assoc_Discrm_Loss(AY , tt)
+                    tt = reshape(tt , shape(AY))
+                    
                     Aloss_value = keras.losses.binary_crossentropy(AY , tt)
-                   # Aloss_value = reduce_mean(Aloss_value)
+
                 Agrads = ATape.gradient(Aloss_value , self.Assoc.trainable_variables )
                 opt.apply_gradients(zip(Agrads,self.Assoc.trainable_variables)) 
                  
@@ -181,121 +170,34 @@ class PLDTGAN:
                     print("Assoc Loss:\t{}\nDiscrm Value:\t{}".format(Aloss.numpy(), Dloss.numpy()))
 
 
-    def test(self, x,y):
-        pass
-
-    '''
-        Helper Functions to create network
-    '''   
-    def oldTrain(self, X, Y , Targets):
-
-        flag = True
-        opt = keras.optimizers.SGD(learning_rate=1e-3)
-    
-        print("Starting The Training", flush=True)
-        for epoch in range(self._epochs):
+    def test(self, X,Y , Targets):
+        
+        for x , y in zip(X,Y):
             
-            print("Step %i of %i" % (epoch , self._epochs))
-            for step, (x_batch, y_batch)  in enumerate(zip(X,Y)):
-                
-              
-
-                x_batch = loadFiles(x_batch)
-                processImages(x_batch)
-                tFiles = Targets[y_batch[: , 0]]
-                dFiles = Targets[y_batch[: , 1]]
-                
-                y = loadFiles(tFiles)
-                d = loadFiles(dFiles) 
-                processImages(y)
-                processImages(d)
-
-                tt = [] 
-                yy = []
-                with GradientTape() as GTape:
-                    
-                    
-                    logits = self.GAN(x_batch)
-                    
-
-                    #split out the target and disasociated images
-                    # and push either the apporiate image
-                    for i, (a , dis) in enumerate(zip(y,d)):
-                        dec = np.random.randint(3)
-                        if dec == 0:
-                            yy.append(logits[i])
-                        elif dec == 1:
-                            yy.append(a)
-                        else:
-                            yy.append(dis)
-                        tt.append(labelGen(dec))
-                    
-
-                    tt = convert_to_tensor(tt)
-                
-                    yy = np.stack(yy)
-
-                    with GradientTape() as DTape: 
-                        DY = self.Discrm(yy)
-                        #reshape(DY , [-1])
-                        
-                        #loss_value = Assoc_Discrm_Loss(DY , tt )
-                        Dloss_value = keras.losses.binary_crossentropy(DY , tt )
-                        #print(Dloss_value)
-                        Dloss_value =  reduce_mean(Dloss_value)
-                    if epoch < self._cutOff:
-                    
-                        grads = DTape.gradient(Dloss_value , self.Discrm.trainable_variables)
-                    
-                        opt.apply_gradients(zip(grads,self.Discrm.trainable_variables))
-
-                    with GradientTape() as ATape:
-                        #need to cat the images
-                        
-                        AY = self.Assoc([x_batch, yy])
-                        #reshape(AY , [-1])
-                        #loss_value = Assoc_Discrm_Loss(AY , tt)
-                        Aloss_value = keras.losses.binary_crossentropy(AY , tt)
-                        Aloss_value = reduce_mean(Aloss_value)
-                    
-                    if epoch < self._cutOff:
-                        Agrads = ATape.gradient(Aloss_value , self.Assoc.trainable_variables )
-                        opt.apply_gradients(zip(Agrads,self.Assoc.trainable_variables)) 
-
-                    loss_value = GANLoss(Dloss_value, Aloss_value)
-                    #print(loss_value)
-
-                if epoch >= self._cutOff:   
-                    Ggrads = GTape.gradient(loss_value , self.GAN.trainable_variables)
-                #print(self.GAN.trainable_variables , flush=True)
-                    try:
-                        opt.apply_gradients(zip(Ggrads,self.GAN.trainable_variables))
-                    except:
-                        print("it broke" , flush=True)
-                        continue
-        print("Done")
-        return
-    
-    
-    def newGAN(self , input_shape , filters):
+            imgs = loadFiles(x)
+            assoc = loadFiles(Targets[y[: , 0]])
+            processImages(imgs)
+            
+            output = self.GAN(imgs)
+            
+            output = output.numpy()
+            
+            deNormalize(output)
+            deNormalize(imgs)
+            
+            for file, i , a , o in zip(x , imgs , assoc , output):
+                file = file.split('/')[-1]
+                print(file)
+                out = np.concatenate((i , a , o) , axis=1)
+                cv2.imwrite("outputs/" + file, out)
         
-        def createOutGenLayer(inLayer , outputSize , activation='relu' , norm=False , kernel_size=(4,4) , strides=(2,2)):
-            l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides , padding="same")(inLayer)
-            if norm:
-                l = BatchNormalization()(l)
-            return l
-        
-        in_layer = Input(shape=input_shape , name = "Input")
-        L1 = createLayers(in_layer , 3)
-        #out = createOutGenLayer(L1 , 3)
-        
-        mod = Model(in_layer , L1)
-        return mod
-    
+    '''
+        Helper Functions to create networks
+    '''    
     def createGAN(self , input_shape , filters):
 
         def createOutGenLayer(inLayer , outputSize , activation='relu' , norm=True , kernel_size=(4,4) , strides=(2,2)):
-            l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides , padding="same")(inLayer)
+            l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides , padding="same" , kernel_initializer=keras.initializers.RandomNormal(stddev=0.02))(inLayer)
             if norm:
                 l = BatchNormalization()(l)
             return l
