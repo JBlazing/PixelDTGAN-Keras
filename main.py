@@ -36,7 +36,7 @@ def main():
 
    
     
-    Mod = PLDTGAN((64,64,3) , 128 , 10 , 30)
+    Mod = PLDTGAN((64,64,3) , 128 , 30)
     
     Mod.train(X_train , y_train , Targets)
     

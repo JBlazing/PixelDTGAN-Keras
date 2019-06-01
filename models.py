@@ -11,6 +11,7 @@ from fileLoader import loadFiles , processImages , deNormalize
 from tensorflow.math import log
 
 import cv2
+
 def createLayers(input , outputSize , kernel_size=(4,4), strides=2 ,leaky=True , batch=True , padding="same"):
     l = Conv2D(outputSize ,  kernel_size = kernel_size ,  strides=strides, padding=padding , kernel_initializer=keras.initializers.RandomNormal(stddev=0.02) )(input)
     if leaky:
@@ -33,9 +34,8 @@ def DiscrmLabelGen(i):
     
 class PLDTGAN:
 
-    def __init__(self , input_shape , filters=64 , Depochs=10 , Gepochs=64 , batch_size=128):
-        self._Depochs = Depochs
-        self._Gepochs = Gepochs
+    def __init__(self , input_shape , filters=64 , epochs=30 ,  batch_size=128):
+        self._epochs = epochs
         self._num_filters = filters
         self._input_shape = input_shape
         self._cutOff = 10
@@ -48,128 +48,112 @@ class PLDTGAN:
     def train(self, X, Y , Targets):
 
         flag = True
-        opt = keras.optimizers.SGD(learning_rate=.0002 , momentum=.5)
+        self.opt = keras.optimizers.SGD(learning_rate=.0002 , momentum=.5)
         print("Starting The Associated/Discrm Training", flush=True)
-
-        self.TrainDis_Ass(X,Y , Targets , opt)
-       
-        self.TrainGAN(X,Y,Targets , opt)
-
-       
-        return
-   
-
-    def TrainGAN(self, X,Y,Targets , opt):
+    
         
-        for epoch in range(self._Gepochs):
-            print("Step %i of %i" % (epoch , self._Gepochs))
+        for epoch in range(self._epochs):
+            print("Epoch %i of %i" % (epoch , self._epochs))
             for step , (x_batch , y_batch) in enumerate(zip(X,Y)):
-
-                x_batch = loadFiles(x_batch)
-                processImages(x_batch)
+                
+                print("Batch {} of {}".format(step , len(X)))
+                
+                lreal = np.full(len(x_batch) , 1.0)
+                lfake = np.full(len(x_batch) , 0.0)
+                
+                input = loadFiles(x_batch)
+                processImages(input)
                 tFiles = Targets[y_batch[: , 0]]
                 dFiles = Targets[y_batch[: , 1]]
+                assoc = loadFiles(tFiles)
+                disassoc = loadFiles(dFiles) 
+                processImages(assoc)
+                processImages(disassoc)               
                 
-                y = loadFiles(tFiles)
-                d = loadFiles(dFiles) 
-                processImages(y)
-                processImages(d)
-                tt = [ 0.0 for x in x_batch ]
-                yy = []
-
-                with GradientTape() as tape:
-                    logits = self.GAN(x_batch)
-                    
-                    DY = self.Discrm(logits)
+                fake = self.GAN(input)
                 
-                    AY = self.Assoc([x_batch, logits])
-
-                    DY  = reshape(DY , [-1])
-                    AY = reshape(DY , [-1])
-                    
-                    Dloss_value = keras.losses.binary_crossentropy(tt , DY )
-                    Aloss_value = keras.losses.binary_crossentropy(tt , AY )
-
-                    loss = GANLoss(Aloss_value , Dloss_value)
-                    
-
-                grads = tape.gradient( loss, self.GAN.trainable_variables)   
-                opt.apply_gradients(zip(grads , self.GAN.trainable_variables))
+                self.DiscrmTrain(assoc , disassoc , fake , lreal , lfake)
                 
-                if step % 25 == 0:
-                    
-                    print("GAN Loss:\t{}".format(loss.numpy()))
+                self.AssocTrain(input , assoc , disassoc , fake, lreal , lfake )
+                
+                self.GANTrain(input , lreal)
+                
+                
+            print("Ya")
 
-
-    def TrainDis_Ass(self , X , Y , Targets , opt):
-        for epoch in range(self._Depochs):
+       
+        
+    def GANTrain(self, input , labels ):
+        
+        with GradientTape() as tape:
             
+            fake = self.GAN(input)
             
-            print("Step %i of %i" % (epoch , self._Depochs))
-            for step, (x_batch, y_batch)  in enumerate(zip(X,Y)):
-                
+            d_out = self.Discrm(fake)
+        
+            
+            a_out = self.Assoc([input , fake])
+            
+            a_loss = keras.losses.binary_crossentropy(a_out , labels)
+            
+            d_loss = keras.losses.binary_crossentropy(d_out , labels)
+            
+            t_loss = (a_loss + d_loss) / 2.0
 
-                x_batch = loadFiles(x_batch)
-                processImages(x_batch)
-                tFiles = Targets[y_batch[: , 0]]
-                dFiles = Targets[y_batch[: , 1]]
-                
-                y = loadFiles(tFiles)
-                d = loadFiles(dFiles) 
-                processImages(y)
-                processImages(d)
-
-                tt = [] 
-                yy = []
-                DT = []
-                logits = self.GAN(x_batch)
-                
-                #split out the target and disasociated images
-                # and push either the apporiate image
-                for i, (a , dis) in enumerate(zip(y,d)):
-                    dec = np.random.randint(3)
-                    if dec == 0:
-                        yy.append(logits[i])
-                    elif dec == 1:
-                        yy.append(a)
-                    else:
-                        yy.append(dis)
-                    tt.append(AssoclabelGen(dec))
-                    DT.append(DiscrmLabelGen(dec))
-
-                tt = convert_to_tensor(tt)
-                DT = convert_to_tensor(DT)
-                yy = np.stack(yy)
-                
-                
-                with GradientTape() as DTape: 
-                    DY = self.Discrm(yy)
-                    
-                    DT = reshape(DT , shape(DY))
-                    
-                    Dloss_value = keras.losses.binary_crossentropy(DY , DT )
-                 
-                grads = DTape.gradient(Dloss_value , self.Discrm.trainable_variables)
-                
-                opt.apply_gradients(zip(grads,self.Discrm.trainable_variables))
-
-                with GradientTape() as ATape:
-                    #need to cat the images
-                    
-                    AY = self.Assoc([x_batch, yy])
-                    tt = reshape(tt , shape(AY))
-                    
-                    Aloss_value = keras.losses.binary_crossentropy(AY , tt)
-
-                Agrads = ATape.gradient(Aloss_value , self.Assoc.trainable_variables )
-                opt.apply_gradients(zip(Agrads,self.Assoc.trainable_variables)) 
-                 
-                if step % 25 == 0:
-                    Aloss = reduce_mean(Aloss_value)
-                    Dloss = reduce_mean(Dloss_value)
-                    print("Assoc Loss:\t{}\nDiscrm Value:\t{}".format(Aloss.numpy(), Dloss.numpy()))
-
-
+            grads = tape.gradient(t_loss , self. GAN.trainable_variables)
+        
+        self.opt.apply_gradients(zip(grads , self.GAN.trainable_variables))
+        
+        return t_loss
+    
+    def AssocTrain(self ,input ,  assoc , disassoc , fake , lreal , lfake):
+    
+        with GradientTape() as tape:
+            
+            a_out = self.Assoc([input , assoc])
+            
+            d_out = self.Assoc([input,disassoc])
+            
+            f_out = self.Assoc([input,fake])
+            
+            a_loss = keras.losses.binary_crossentropy(a_out , lreal)
+            
+            d_loss = keras.losses.binary_crossentropy(d_out , lfake)
+            
+            f_loss = keras.losses.binary_crossentropy(f_out , lfake)
+            
+            t_loss = (a_loss + d_loss + f_loss )/ 3.0
+            
+            grads = tape.gradient(t_loss , self.Assoc.trainable_variables)
+            
+        self.opt.apply_gradients(zip(grads , self.Assoc.trainable_variables))
+        
+        return t_loss
+        
+    def DiscrmTrain(self , assoc , disassoc , fake, lreal , lfake):
+        
+        with GradientTape() as tape:
+            
+            a_out = self.Discrm(assoc)
+            
+            d_out = self.Discrm(disassoc)
+            
+            f_out = self.Discrm(fake)
+            
+            a_loss = keras.losses.binary_crossentropy(a_out , lreal)
+            
+            d_loss = keras.losses.binary_crossentropy(d_out , lreal)
+            
+            f_loss = keras.losses.binary_crossentropy(f_out , lfake)
+            
+            t_loss = (a_loss + d_loss + f_loss )/ 3
+            
+            grads = tape.gradient(t_loss , self.Discrm.trainable_variables)
+            
+        self.opt.apply_gradients(zip(grads , self.Discrm.trainable_variables))
+        
+        return t_loss
+        
     def test(self, X,Y , Targets):
         
         for x , y in zip(X,Y):
