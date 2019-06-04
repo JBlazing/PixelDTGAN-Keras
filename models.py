@@ -20,51 +20,44 @@ def createLayers(input , outputSize , kernel_size=(4,4), strides=2 ,leaky=True ,
         l = BatchNormalization()(l)
     return l
 
-#Generate label for target Y for the loss functions
-#If 1 is generated then the target image was associated image was choosen
-
-def AssoclabelGen(i):
-    if i == 1:
-        return 1.0
-    return 0.0
-def DiscrmLabelGen(i):
-    if i == 1 or i==2:
-        return 1.0
-    return 0.0
-    
 class PLDTGAN:
 
-    def __init__(self , input_shape , filters=64 , epochs=30 ,  batch_size=128):
-        self._epochs = epochs
+    def __init__(self , input_shape , filters=64 , epochs=25 ,  checkpoint=0):
+        self._epochs = epochs + checkpoint
         self._num_filters = filters
         self._input_shape = input_shape
         self._cutOff = 10
-        self.batch_size = batch_size
-        self.GAN = self.createGAN(input_shape , self._num_filters)
-        self.Discrm = self.createDisc(input_shape , self._num_filters)
-        self.Assoc = self.createAssociated(input_shape , filters)
-    
+        
+        
+        if checkpoint == 0:
+            self.GAN = self.createGAN(input_shape , self._num_filters)
+            self.Discrm = self.createDisc(input_shape , self._num_filters)
+            self.Assoc = self.createAssociated(input_shape , filters)
+        else:
+            self.loadModels(checkpoint)
 
-    def train(self, X, Y , Targets):
+    def train(self, batches):
 
         flag = True
         self.opt = keras.optimizers.SGD(learning_rate=.0002 , momentum=.5)
         print("Starting The Associated/Discrm Training", flush=True)
     
-        
+         
         for epoch in range(self._epochs):
             print("Epoch %i of %i" % (epoch , self._epochs))
-            for step , (x_batch , y_batch) in enumerate(zip(X,Y)):
+            A_total = 0.0 , D_total = 0.0 , G_total = 0.0
+            for step , x_batch in enumerate(batches):
                 
-                print("Batch {} of {}".format(step , len(X)))
+                if step % 25 == 0:
+                    print("Epoch {} | Batch {} of {}".format(epoch , step , len(batches)))
                 
                 lreal = np.full(len(x_batch) , 1.0)
                 lfake = np.full(len(x_batch) , 0.0)
                 
-                input = loadFiles(x_batch)
+                input = loadFiles(x_batch[: , 0])
                 processImages(input)
-                tFiles = Targets[y_batch[: , 0]]
-                dFiles = Targets[y_batch[: , 1]]
+                tFiles = x_batch[ : , 1]
+                dFiles = x_batch[: , 2]
                 assoc = loadFiles(tFiles)
                 disassoc = loadFiles(dFiles) 
                 processImages(assoc)
@@ -72,14 +65,18 @@ class PLDTGAN:
                 
                 fake = self.GAN(input)
                 
-                self.DiscrmTrain(assoc , disassoc , fake , lreal , lfake)
+                D_Loss = self.DiscrmTrain(assoc , disassoc , fake , lreal , lfake)
                 
-                self.AssocTrain(input , assoc , disassoc , fake, lreal , lfake )
+                A_Loss = self.AssocTrain(input , assoc , disassoc , fake, lreal , lfake )
                 
-                self.GANTrain(input , lreal)
+                G_Loss = self.GANTrain(input , lreal)
                 
-                
-            print("Ya")
+                A_total += reduce_mean(A_loss)
+                A_total += reduce_mean(D_loss)
+                G_total += reduce_mean(G_loss)
+            
+        if epoch % 5 == 0 and epoch != 0:
+            self.saveModels(epoch)
 
        
         
@@ -94,9 +91,9 @@ class PLDTGAN:
             
             a_out = self.Assoc([input , fake])
             
-            a_loss = keras.losses.binary_crossentropy(a_out , labels)
+            a_loss = keras.losses.binary_crossentropy(labels , a_out)
             
-            d_loss = keras.losses.binary_crossentropy(d_out , labels)
+            d_loss = keras.losses.binary_crossentropy(labels, d_out )
             
             t_loss = (a_loss + d_loss) / 2.0
 
@@ -116,11 +113,11 @@ class PLDTGAN:
             
             f_out = self.Assoc([input,fake])
             
-            a_loss = keras.losses.binary_crossentropy(a_out , lreal)
+            a_loss = keras.losses.binary_crossentropy(lreal , a_out )
             
-            d_loss = keras.losses.binary_crossentropy(d_out , lfake)
+            d_loss = keras.losses.binary_crossentropy(lfake , d_out )
             
-            f_loss = keras.losses.binary_crossentropy(f_out , lfake)
+            f_loss = keras.losses.binary_crossentropy(lfake, f_out )
             
             t_loss = (a_loss + d_loss + f_loss )/ 3.0
             
@@ -140,11 +137,11 @@ class PLDTGAN:
             
             f_out = self.Discrm(fake)
             
-            a_loss = keras.losses.binary_crossentropy(a_out , lreal)
+            a_loss = keras.losses.binary_crossentropy(lreal , a_out)
             
-            d_loss = keras.losses.binary_crossentropy(d_out , lreal)
+            d_loss = keras.losses.binary_crossentropy(lreal , d_out)
             
-            f_loss = keras.losses.binary_crossentropy(f_out , lfake)
+            f_loss = keras.losses.binary_crossentropy(lfake , f_out)
             
             t_loss = (a_loss + d_loss + f_loss )/ 3
             
@@ -239,3 +236,17 @@ class PLDTGAN:
         #AssocModel.compile(loss='mean_squared_error', optimizer='sgd')
         
         return AssocModel
+        
+        
+    def saveModels(self , epoch=None):
+        if epoch == None:
+            epoch = self._epochs
+        self.GAN.save("checkpoints/GAN_{}_checkpoint.h5".format(epoch))
+        self.Discrm.save("checkpoints/Discrm_{}_checkpoint.h5".format(epoch))
+        self.Assoc.save("checkpoints/Assoc_{}_checkpoint.h5".format(epoch))
+        
+        
+    def loadModels(self , epoch):
+        self.GAN = keras.models.load_model("checkpoints/GAN_{}_checkpoint.h5".format(epoch))
+        self.Discrm = keras.models.load_model("checkpoints/Discrm_{}_checkpoint.h5".format(epoch))
+        self.Assoc = keras.models.load_model("checkpoints/Assoc_{}_checkpoint.h5".format(epoch))

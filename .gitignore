@@ -3,6 +3,7 @@ lookbook/
 __pycache__
 .vscode/
 outputs/
+checkpoints/
 # Compiled source #
 ###################
 

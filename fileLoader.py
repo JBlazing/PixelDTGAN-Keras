@@ -3,6 +3,29 @@ import os
 import re
 import numpy as np
 import sklearn as sk
+def getDataPaths(file , batches=127):
+
+
+    f = open(file , 'r')
+    
+    b = f.readlines()
+    
+    f.close()
+    
+    b = [ l.split(',') for l in b ]
+    
+    for l in b:
+        l[-1] = l[-1].rstrip()
+    
+    
+    b = np.array(b)
+    
+    splits = int(b.shape[0] / batches) - 1
+    
+    return np.array_split(b , splits)
+
+    
+
 def getFiles(path):
     
     files = os.fsencode(path)
