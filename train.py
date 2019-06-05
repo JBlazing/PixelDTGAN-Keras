@@ -18,7 +18,7 @@ def main():
     Mod.train(batches)
     
     
-    Mod.saveModels()
+    Mod.saveModels(Mod._epochs)
 
  
 if __name__ == "__main__":

@@ -13,6 +13,6 @@ Right Now this is a work in progress. Here is my current TO DO.
 * [x] Excedding GPU memory will figure out how to get around this without having to go get new GPU (This was a issue with GAN output layer sizing)
 * [x] Optimize for ram memory usage (Try and load data when needed)
 * [x] Try and figure out why the last batch won't compute gradients (Can't modify the output from the GAN to do a uniform  sampling from either fake , associated or disassociated)
-* [ ] Test on LookBook dataset
+* [x] Test on LookBook dataset (Some Images produce good results while others do not produce anything close)
 * [ ] Modify and experiment with the KITTI Dataset 
 * [ ] Write report and then do Dissertation

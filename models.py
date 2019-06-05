@@ -43,9 +43,11 @@ class PLDTGAN:
         print("Starting The Associated/Discrm Training", flush=True)
     
          
-        for epoch in range(self._epochs):
+        for epoch in range(1 , self._epochs + 1):
             print("Epoch %i of %i" % (epoch , self._epochs))
-            A_total = 0.0 , D_total = 0.0 , G_total = 0.0
+            A_total = 0.0
+            D_total = 0.0 
+            G_total = 0.0
             for step , x_batch in enumerate(batches):
                 
                 if step % 25 == 0:
@@ -71,11 +73,12 @@ class PLDTGAN:
                 
                 G_Loss = self.GANTrain(input , lreal)
                 
-                A_total += reduce_mean(A_loss)
-                A_total += reduce_mean(D_loss)
-                G_total += reduce_mean(G_loss)
+                A_total += reduce_mean(A_Loss)
+                A_total += reduce_mean(D_Loss)
+                G_total += reduce_mean(G_Loss)
             
-        if epoch % 5 == 0 and epoch != 0:
+                
+        
             self.saveModels(epoch)
 
        
@@ -151,12 +154,12 @@ class PLDTGAN:
         
         return t_loss
         
-    def test(self, X,Y , Targets):
+    def test(self, batches):
         
-        for x , y in zip(X,Y):
+        for batch in batches:
             
-            imgs = loadFiles(x)
-            assoc = loadFiles(Targets[y[: , 0]])
+            imgs = loadFiles(batch[: , 0])
+            assoc = loadFiles(batch[: , 1])
             processImages(imgs)
             
             output = self.GAN(imgs)
@@ -166,8 +169,8 @@ class PLDTGAN:
             deNormalize(output)
             deNormalize(imgs)
             
-            for file, i , a , o in zip(x , imgs , assoc , output):
-                file = file.split('/')[-1]
+            for file, i , a , o in zip(batch , imgs , assoc , output):
+                file = file[0].split('/')[-1]
                 print(file)
                 out = np.concatenate((i , a , o) , axis=1)
                 cv2.imwrite("outputs/" + file, out)
@@ -238,9 +241,8 @@ class PLDTGAN:
         return AssocModel
         
         
-    def saveModels(self , epoch=None):
-        if epoch == None:
-            epoch = self._epochs
+    def saveModels(self, epoch):
+        print("Saving at Epoch {}".format(epoch))
         self.GAN.save("checkpoints/GAN_{}_checkpoint.h5".format(epoch))
         self.Discrm.save("checkpoints/Discrm_{}_checkpoint.h5".format(epoch))
         self.Assoc.save("checkpoints/Assoc_{}_checkpoint.h5".format(epoch))
