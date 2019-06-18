@@ -1,46 +1,81 @@
-from fileLoader import getFiles , parse_Filenames , get_disassociated , loadFiles , processImages
 from sklearn.model_selection import train_test_split
+from random import shuffle
 import numpy as np
-
-files = getFiles('lookbook/resized/')
-
-
-X,Targets,Y_idxs = parse_Filenames(files)
-
-X = np.array(X)
+import glob
+import cv2
+from fileLoader import resizeImages
 
 
-dis = get_disassociated(Y_idxs , len(Targets))
-Targets = np.array(Targets)
+new_size = (256 , 64)
+
+resizeImages('data_road/training/gt_pixel_cp/' , 'data_road/resized/training/gt_pixel_cp/' , new_size)
 
 
-X_train, X_test, y_train, y_test = train_test_split(X , np.array([ (x,y) for x, y in zip(Y_idxs , dis )]) , train_size=.8 )
+'''
+img_path = "data_road/training/image_2/{}_{}"
 
+gts = glob.glob("data_road/training/gt_image_2/*.png")
 
-X_Val ,  X_t , y_val , y_t  = train_test_split(X_test , y_test , train_size=.5)
+imgs = []
 
+for gt in gts:
 
-def write_to_file(X , Y , T,  f):
+    file = gt.split("/")[-1]
+    parts = file.split('_')
+    img = '{}_{}'.format(parts[0],parts[2])
+    imgs.append(img)
+    
+    
+cpy = [ gt for gt in gts ]
 
-    for x , y in zip(X , Y):
+f = open("training.csv" , "w")
+for img , gt , dis in zip(imgs , gts , cpy):
 
-        string = "{},{},{}\n".format(x , T[y[0]] , T[y[1]])
-        f.write(string)
+    gt_splits = gt.split('/')
+    dis_splits = dis.split('/')
+    
+    w = '{},{},{}\n'.format(img , gt_splits[-1] , dis_splits[-1] )
+    
+    f.write(w)
+    
+    
+f.close()
 
-f = open("lookbook/train.txt" , 'w')
-
-write_to_file(X_train , y_train , Targets, f )
+filePaths = ['data_road/training/image_2/' , 'data_road/training/gt_image_2/' , 'data_road/training/gt_image_2/']
+filePaths = ['data_road/resized/training/image_2/' , 'data_road/resized/training/gt_image_2/' , 'data_road/resized/training/gt_image_2/']
+outPaths = ['data_road/resized/training/image_2/' , 'data_road/resized/training/gt_image_2/']
+f = open('data_road/training.csv' , 'r')
+    
+b = f.readlines()
 
 f.close()
 
-f = open("lookbook/test.txt" , 'w')
+b = [ l.split(',') for l in b ]
 
-write_to_file(X_t , y_t ,Targets, f)
+for l in b:
+    l[-1] = l[-1].rstrip()
 
-f.close()
+for l in b:
+    for i in range(len(filePaths)):
+        l[i] = filePaths[i] + l[i]
+        
+b = np.array(b)
 
-f = open("lookbook/val.txt" , "w")
 
-write_to_file(X_Val , y_val ,Targets, f)
 
-f.close()
+
+sizes = set()
+
+for row  in b:
+    for im , path in zip(row , outPaths):
+        print(im)
+        img = cv2.imread(im)
+
+        
+        img = cv2.resize(img , new_size)
+        outPath = '{}{}'.format(path,im.split('/')[-1] )
+        cv2.imwrite(outPath , img)
+        
+'''
+
+

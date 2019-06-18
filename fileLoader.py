@@ -3,7 +3,7 @@ import os
 import re
 import numpy as np
 import sklearn as sk
-def getDataPaths(file , batches=127):
+def getDataPaths(file , filePaths=['','',''] , batches=127):
 
 
     f = open(file , 'r')
@@ -17,7 +17,10 @@ def getDataPaths(file , batches=127):
     for l in b:
         l[-1] = l[-1].rstrip()
     
-    
+    for l in b:
+        for i in range(len(filePaths)):
+            l[i] = filePaths[i] + l[i]
+            
     b = np.array(b)
     
     splits = int(b.shape[0] / batches) - 1

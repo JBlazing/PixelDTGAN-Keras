@@ -12,7 +12,7 @@ from tensorflow.math import log
 
 import cv2
 
-def createLayers(input , outputSize , kernel_size=(4,4), strides=2 ,leaky=True , batch=True , padding="same"):
+def createLayers(input , outputSize , kernel_size=(4,8), strides=(2,2) ,leaky=True , batch=True , padding="same"):
     l = Conv2D(outputSize ,  kernel_size = kernel_size ,  strides=strides, padding=padding , kernel_initializer=keras.initializers.RandomNormal(stddev=0.02) )(input)
     if leaky:
         l = LeakyReLU(.2)(l)
@@ -158,8 +158,8 @@ class PLDTGAN:
         
         for batch in batches:
             
-            imgs = loadFiles(batch[: , 0])
-            assoc = loadFiles(batch[: , 1])
+            imgs = loadFiles(batch)
+            
             processImages(imgs)
             
             output = self.GAN(imgs)
@@ -169,10 +169,10 @@ class PLDTGAN:
             deNormalize(output)
             deNormalize(imgs)
             
-            for file, i , a , o in zip(batch , imgs , assoc , output):
-                file = file[0].split('/')[-1]
+            for file, i , o in zip(batch , imgs  , output):
+                file = file.split('/')[-1]
                 print(file)
-                out = np.concatenate((i , a , o) , axis=1)
+                out = np.concatenate((i , o) , axis=0)
                 cv2.imwrite("outputs/" + file, out)
         
     '''
@@ -180,7 +180,7 @@ class PLDTGAN:
     '''    
     def createGAN(self , input_shape , filters):
 
-        def createOutGenLayer(inLayer , outputSize , activation='relu' , norm=True , kernel_size=(4,4) , strides=(2,2)):
+        def createOutGenLayer(inLayer , outputSize , activation='relu' , norm=True , kernel_size=(4,8) , strides=(2,2)):
             l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides , padding="same" , kernel_initializer=keras.initializers.RandomNormal(stddev=0.02))(inLayer)
             if norm:
                 l = BatchNormalization()(l)
@@ -191,10 +191,10 @@ class PLDTGAN:
         L1 = createLayers(in_layer , filters)
         L2 = createLayers(L1 , filters * 2)
         L3 = createLayers(L2 , filters * 4)
-        L4 = createLayers(L3 , filters * 8)
-        L5 = createLayers(L4 , 100 , kernel_size=4 , strides=4)
-        G5 = createOutGenLayer(L5 , filters * 4 , strides=4)
-        G6 = createOutGenLayer(G5 , filters * 2)
+        L4 = createLayers(L3 , filters * 8 , strides=(4,8))
+        L5 = createLayers(L4 , 200 ,  strides=(2,4)  )
+        G5 = createOutGenLayer(L5 , filters * 4 , strides=(4,8))
+        G6 = createOutGenLayer(G5 , filters * 2 , strides=(2,4) )
         G7 = createOutGenLayer(G6 , filters)
         G8 = createOutGenLayer(G7 , filters)
         
@@ -211,8 +211,8 @@ class PLDTGAN:
         L1 = createLayers(in_layer , filters)
         L2 = createLayers(L1 , filters * 2)
         L3 = createLayers(L2 , filters * 4)
-        L4 = createLayers(L3 , filters * 8)
-        L5 = createLayers(L4 , 1 , kernel_size=4, strides=4 ,leaky=False , batch=False)
+        L4 = createLayers(L3 , filters * 8, strides=(4,8))
+        L5 = createLayers(L4 , 1 , strides=(2,4) ,leaky=False , batch=False)
         L6 = Activation('sigmoid')(L5)
         
         DiscModel = Model(inputs=[in_layer] , outputs=[L6])
@@ -230,9 +230,9 @@ class PLDTGAN:
         L1 = createLayers(InCat , filters)
         L2 = createLayers(L1 , filters * 2)
         L3 = createLayers(L2 , filters * 4)
-        L4 = createLayers(L3 , filters * 8)
+        L4 = createLayers(L3 , filters * 8, strides=(4,8))
         
-        L5 = createLayers(L4 , 1 ,  kernel_size=4, strides=4 , leaky=False , batch=False)
+        L5 = createLayers(L4 , 1 , strides=(2,4) , leaky=False , batch=False)
         L6 = Activation('sigmoid')(L5)
         
         AssocModel = Model(inputs=[image1,image2] , outputs=L6 )
@@ -243,12 +243,12 @@ class PLDTGAN:
         
     def saveModels(self, epoch):
         print("Saving at Epoch {}".format(epoch))
-        self.GAN.save("checkpoints/GAN_{}_checkpoint.h5".format(epoch))
-        self.Discrm.save("checkpoints/Discrm_{}_checkpoint.h5".format(epoch))
-        self.Assoc.save("checkpoints/Assoc_{}_checkpoint.h5".format(epoch))
+        self.GAN.save("/media/hdd/checkpoints/GAN_{}_checkpoint.h5".format(epoch))
+        self.Discrm.save("/media/hdd/checkpoints/Discrm_{}_checkpoint.h5".format(epoch))
+        self.Assoc.save("/media/hdd/checkpoints/Assoc_{}_checkpoint.h5".format(epoch))
         
         
     def loadModels(self , epoch):
-        self.GAN = keras.models.load_model("checkpoints/GAN_{}_checkpoint.h5".format(epoch))
-        self.Discrm = keras.models.load_model("checkpoints/Discrm_{}_checkpoint.h5".format(epoch))
-        self.Assoc = keras.models.load_model("checkpoints/Assoc_{}_checkpoint.h5".format(epoch))
+        self.GAN = keras.models.load_model("/media/hdd/checkpoints/GAN_{}_checkpoint.h5".format(epoch))
+        self.Discrm = keras.models.load_model("/media/hdd/checkpoints/Discrm_{}_checkpoint.h5".format(epoch))
+        self.Assoc = keras.models.load_model("/media/hdd/checkpoints/Assoc_{}_checkpoint.h5".format(epoch))
