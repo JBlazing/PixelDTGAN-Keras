@@ -5,13 +5,13 @@ import tensorflow as tf
 
 def main():
     
-    filePaths = ['data_road/resized/training/image_2/' , 'data_road/resized/training/gt_pixel_cp/' , 'data_road/resized/training/gt_pixel_cp/']
-    batches = getDataPaths('data_road/training.csv' , filePaths , 16)
+    filePaths = ['data_road/resized/training/image_2/' , 'data_road/resized/training/gt_image_cp/' , 'data_road/resized/training/gt_image_cp/']
+    batches = getDataPaths('data_road/new_training.csv' , filePaths , 16)
     
     size = cv2.imread(batches[0][0][0]).shape
     
     with tf.device('/device:GPU:1'):
-        Mod = PLDTGAN(size , filters=64, epochs=1024)
+        Mod = PLDTGAN(size , epochs=256)
         
         #print(Mod.GAN.summary())
         

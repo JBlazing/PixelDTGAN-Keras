@@ -6,12 +6,39 @@ import cv2
 from fileLoader import resizeImages
 
 
+
+f = open("data_road/training.csv"  , 'r')
+
+lines = f.readlines()
+
+f.close()
+
+bs = [1 for i in lines]
+
+X_train, X_test = train_test_split(lines) 
+
+f = open("data_road/new_training.csv" , 'w')
+for line in X_train:
+    f.write(line)
+    
+f.close()
+f = open("data_road/testing.csv" , 'w')
+for line in X_test:
+    f.write(line)
+    
+f.close()
+
+
+
+
+'''
+
 new_size = (256 , 64)
 
 resizeImages('data_road/training/gt_pixel_cp/' , 'data_road/resized/training/gt_pixel_cp/' , new_size)
 
 
-'''
+
 img_path = "data_road/training/image_2/{}_{}"
 
 gts = glob.glob("data_road/training/gt_image_2/*.png")

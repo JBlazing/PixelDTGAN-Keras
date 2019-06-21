@@ -3,7 +3,8 @@ from models import PLDTGAN
 import glob
 import numpy as np
 import tensorflow as tf
-def main():
+import sys
+def main(checkpoint):
 
     imgs = glob.glob('data_road/resized/testing/*.png')
     batches = np.array(imgs)
@@ -11,7 +12,7 @@ def main():
     
     print(len(batches))
     with tf.device('/device:GPU:0'):
-        mod = PLDTGAN(None , checkpoint=57)
+        mod = PLDTGAN(None , checkpoint=checkpoint)
         
         #print(mod.GAN.summary())
         
@@ -19,4 +20,5 @@ def main():
     
     
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) == 2:
+        main(int(sys.argv[1]))

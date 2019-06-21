@@ -26,7 +26,7 @@ class PLDTGAN:
         self._epochs = epochs + checkpoint
         self._num_filters = filters
         self._input_shape = input_shape
-        self._cutOff = 10
+        self._checkpoint = checkpoint
         
         
         if checkpoint == 0:
@@ -39,11 +39,11 @@ class PLDTGAN:
     def train(self, batches):
 
         flag = True
-        self.opt = keras.optimizers.SGD(learning_rate=.0002 , momentum=.5)
+        self.opt = keras.optimizers.SGD(learning_rate=.002 , momentum=.5)
         print("Starting The Associated/Discrm Training", flush=True)
     
-         
-        for epoch in range(1 , self._epochs + 1):
+        
+        for epoch in range(self._checkpoint+1 , self._epochs + 1):
             print("Epoch %i of %i" % (epoch , self._epochs))
             A_total = 0.0
             D_total = 0.0 
@@ -155,7 +155,7 @@ class PLDTGAN:
         return t_loss
         
     def test(self, batches):
-        
+        alpha = 0.25
         for batch in batches:
             
             imgs = loadFiles(batch)
@@ -172,7 +172,9 @@ class PLDTGAN:
             for file, i , o in zip(batch , imgs  , output):
                 file = file.split('/')[-1]
                 print(file)
-                out = np.concatenate((i , o) , axis=0)
+              
+                out = cv2.addWeighted(o , alpha , i , 1.0 - alpha , 0) 
+                #out = np.concatenate((i , o) , axis=0)
                 cv2.imwrite("outputs/" + file, out)
         
     '''
