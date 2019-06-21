@@ -39,7 +39,7 @@ class PLDTGAN:
     def train(self, batches):
 
         flag = True
-        self.opt = keras.optimizers.SGD(learning_rate=.002 , momentum=.5)
+        self.opt = keras.optimizers.SGD(learning_rate=.00002 , momentum=.5)
         print("Starting The Associated/Discrm Training", flush=True)
     
         
@@ -73,9 +73,7 @@ class PLDTGAN:
                 
                 G_Loss = self.GANTrain(input , lreal)
                 
-                A_total += reduce_mean(A_Loss)
-                A_total += reduce_mean(D_Loss)
-                G_total += reduce_mean(G_Loss)
+                print("A AVG:{}\tD AVG:{}\t G AVG:{}".format(reduce_mean(A_Loss) , reduce_mean(D_Loss) , reduce_mean(G_Loss) ))
             
                 
         
