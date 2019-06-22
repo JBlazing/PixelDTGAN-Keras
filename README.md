@@ -14,9 +14,8 @@ Right Now this is a work in progress. Here is my current TO DO.
 * [x] Optimize for ram memory usage (Try and load data when needed)
 * [x] Try and figure out why the last batch won't compute gradients (Can't modify the output from the GAN to do a uniform  sampling from either fake , associated or disassociated)
 * [x] Test on LookBook dataset (Some Images produce good results while others do not produce anything close)
-* [ ] Modify and experiment with the KITTI Dataset 
+* [x] Modify and experiment with the KITTI Dataset 
   * [x] Generate a direct mask with the generator MSE == 0.08
-  * [ ] Convert output of generator to compare using IOU
-  * [ ] Predict Classes with directly to compare IOU 
+  * [x] Convert output of generator to compare using IOU
 * [ ] Write report 
 * [ ] Defend Thesies (First week of Semester)
