@@ -12,11 +12,18 @@ from tensorflow.math import log
 
 import cv2
 
-def createLayers(input , outputSize , kernel_size=(4,8), strides=(2,2) ,leaky=True , batch=True , padding="same"):
+def createLayers(input , outputSize , kernel_size=(8,18), strides=(2,2) ,leaky=True , batch=True , padding="same"):
     l = Conv2D(outputSize ,  kernel_size = kernel_size ,  strides=strides, padding=padding , kernel_initializer=keras.initializers.RandomNormal(stddev=0.02) )(input)
     if leaky:
         l = LeakyReLU(.2)(l)
     if batch:
+        l = BatchNormalization()(l)
+    return l
+
+
+def createOutGenLayer(inLayer , outputSize , activation='relu' , norm=True , kernel_size=(8,18) , strides=(2,2)):
+    l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides , padding="same" , kernel_initializer=keras.initializers.RandomNormal(stddev=0.02))(inLayer)
+    if norm:
         l = BatchNormalization()(l)
     return l
 
@@ -39,7 +46,7 @@ class PLDTGAN:
     def train(self, batches):
 
         flag = True
-        self.opt = keras.optimizers.SGD(learning_rate=.00002 , momentum=.5)
+        self.opt = keras.optimizers.SGD(learning_rate=.002 , momentum=.5)
         print("Starting The Associated/Discrm Training", flush=True)
     
         
@@ -73,7 +80,9 @@ class PLDTGAN:
                 
                 G_Loss = self.GANTrain(input , lreal)
                 
-                print("A AVG:{}\tD AVG:{}\t G AVG:{}".format(reduce_mean(A_Loss) , reduce_mean(D_Loss) , reduce_mean(G_Loss) ))
+                A_total += reduce_mean(A_Loss)
+                A_total += reduce_mean(D_Loss)
+                G_total += reduce_mean(G_Loss)
             
                 
         
@@ -179,20 +188,14 @@ class PLDTGAN:
         Helper Functions to create networks
     '''    
     def createGAN(self , input_shape , filters):
-
-        def createOutGenLayer(inLayer , outputSize , activation='relu' , norm=True , kernel_size=(4,8) , strides=(2,2)):
-            l = Conv2DTranspose(outputSize , activation=activation , kernel_size=kernel_size , strides=strides , padding="same" , kernel_initializer=keras.initializers.RandomNormal(stddev=0.02))(inLayer)
-            if norm:
-                l = BatchNormalization()(l)
-            return l
-        
+    
         in_layer = Input(shape=input_shape , name = "Input")
 
         L1 = createLayers(in_layer , filters)
         L2 = createLayers(L1 , filters * 2)
         L3 = createLayers(L2 , filters * 4)
         L4 = createLayers(L3 , filters * 8 , strides=(4,8))
-        L5 = createLayers(L4 , 200 ,  strides=(2,4)  )
+        L5 = createLayers(L4 , 100 ,  strides=(2,4)  )
         G5 = createOutGenLayer(L5 , filters * 4 , strides=(4,8))
         G6 = createOutGenLayer(G5 , filters * 2 , strides=(2,4) )
         G7 = createOutGenLayer(G6 , filters)

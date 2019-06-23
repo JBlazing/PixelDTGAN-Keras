@@ -11,7 +11,7 @@ def main():
     size = cv2.imread(batches[0][0][0]).shape
     
     with tf.device('/device:GPU:1'):
-        Mod = PLDTGAN(size , epochs=512 , checkpoint=256)
+        Mod = PLDTGAN(size , epochs=512)
         
         #print(Mod.GAN.summary())
         
