@@ -11,14 +11,15 @@ import gc
 
 def main():
     
-    batches = getDataPaths('lookbook/train.txt')
-       
-    Mod = PLDTGAN((64,64,3) , 128 , 30)
+    batches = getDataPaths('../lookbook/train.txt')
     
-    Mod.train(batches)
+    with tf.device('/device:GPU:1'):
+        Mod = PLDTGAN((64,64,3) , 64 , 30)
+        
+        Mod.train(batches)
     
     
-    Mod.saveModels(Mod._epochs)
+        #Mod.saveModels(Mod._epochs)
 
  
 if __name__ == "__main__":

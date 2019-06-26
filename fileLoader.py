@@ -17,6 +17,9 @@ def getDataPaths(file , batches=127):
     for l in b:
         l[-1] = l[-1].rstrip()
     
+    for i , l in enumerate(b):
+        for j in range(0,len(l)):
+            l[j] = '../'+l[j]
     
     b = np.array(b)
     

@@ -27,15 +27,22 @@ class PLDTGAN:
         self._num_filters = filters
         self._input_shape = input_shape
         self._cutOff = 10
-        
-        
+        self._OutFile = open("/media/hdd/LookBookLosses.csv" , 'w')
+        self._OutFile.write("D Loss,A_Loss,G_Loss")
         if checkpoint == 0:
             self.GAN = self.createGAN(input_shape , self._num_filters)
             self.Discrm = self.createDisc(input_shape , self._num_filters)
             self.Assoc = self.createAssociated(input_shape , filters)
         else:
             self.loadModels(checkpoint)
-
+    
+    def log_losses(self , D_Loss , A_Loss , G_Loss):
+        
+        for D , A , G in zip(D_Loss , A_Loss , G_Loss):
+            
+            self._OutFile.write("{},{},{}\n".format(D[0,0],A[0,0],G[0,0]))
+            
+    
     def train(self, batches):
 
         flag = True
@@ -73,12 +80,12 @@ class PLDTGAN:
                 
                 G_Loss = self.GANTrain(input , lreal)
                 
-                A_total += reduce_mean(A_Loss)
-                A_total += reduce_mean(D_Loss)
-                G_total += reduce_mean(G_Loss)
+                #print(D_Loss.numpy().shape)
+                
+                self.log_losses(D_Loss.numpy() , A_Loss.numpy() , G_Loss.numpy())
             
                 
-        
+            
             self.saveModels(epoch)
 
        
@@ -188,7 +195,7 @@ class PLDTGAN:
         
         in_layer = Input(shape=input_shape , name = "Input")
 
-        L1 = createLayers(in_layer , filters)
+        L1 = createLayers(in_layer , filters , batch=False)
         L2 = createLayers(L1 , filters * 2)
         L3 = createLayers(L2 , filters * 4)
         L4 = createLayers(L3 , filters * 8)
@@ -208,7 +215,7 @@ class PLDTGAN:
     def createDisc(self , input_shape , filters ):
 
         in_layer = Input(shape=input_shape , name="Discrm_Input")
-        L1 = createLayers(in_layer , filters)
+        L1 = createLayers(in_layer , filters , batch=False)
         L2 = createLayers(L1 , filters * 2)
         L3 = createLayers(L2 , filters * 4)
         L4 = createLayers(L3 , filters * 8)
@@ -227,7 +234,7 @@ class PLDTGAN:
         image2 = Input(shape=inputs , name="Image_2")       
         
         InCat = Concatenate()([image1 , image2])
-        L1 = createLayers(InCat , filters)
+        L1 = createLayers(InCat , filters , batch=False)
         L2 = createLayers(L1 , filters * 2)
         L3 = createLayers(L2 , filters * 4)
         L4 = createLayers(L3 , filters * 8)
@@ -243,9 +250,9 @@ class PLDTGAN:
         
     def saveModels(self, epoch):
         print("Saving at Epoch {}".format(epoch))
-        self.GAN.save("checkpoints/GAN_{}_checkpoint.h5".format(epoch))
-        self.Discrm.save("checkpoints/Discrm_{}_checkpoint.h5".format(epoch))
-        self.Assoc.save("checkpoints/Assoc_{}_checkpoint.h5".format(epoch))
+        self.GAN.save("../Lookcheckpoints/GAN_{}_checkpoint.h5".format(epoch))
+        self.Discrm.save("../Lookcheckpoints/Discrm_{}_checkpoint.h5".format(epoch))
+        self.Assoc.save("../Lookcheckpoints/Assoc_{}_checkpoint.h5".format(epoch))
         
         
     def loadModels(self , epoch):
